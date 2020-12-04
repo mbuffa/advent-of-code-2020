@@ -1,0 +1,21 @@
+pub fn find_two(series: &[u32], target: u32) -> Option<[u32; 2]> {
+    let mut start = series.iter().peekable();
+    let mut end = series.iter().rev().peekable();
+    while let (Some(&&low), Some(&&high)) = (start.peek(), end.peek()) {
+        match (low + high).cmp(&target) {
+            std::cmp::Ordering::Less => start.next(),
+            std::cmp::Ordering::Equal => {
+                return Some([low, high]);
+            }
+            std::cmp::Ordering::Greater => end.next(),
+        };
+    }
+    None
+}
+
+pub fn find_three(series: &[u32], target: u32) -> Option<[u32; 3]> {
+    series
+        .iter()
+        .filter_map(|&i| find_two(series, target - i).map(|[a, b]| [a, b, i]))
+        .next()
+}
