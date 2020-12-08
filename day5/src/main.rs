@@ -13,16 +13,6 @@ impl Seat {
   }
 }
 
-impl std::cmp::PartialEq for Seat {
-  fn ne(&self, other: &Self) -> bool {
-    self.id != other.id
-  }
-
-  fn eq(&self, other: &Self) -> bool {
-    self.id == other.id
-  }
-}
-
 fn main() {
   let contents = fs::read_to_string("./input.txt")
     .expect("Cannot load file.");
