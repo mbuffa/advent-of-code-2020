@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, str::Chars};
+use std::{collections::HashMap, fs};
 
 fn main() {
   let contents = fs::read_to_string("./input.txt")
@@ -10,23 +10,31 @@ fn main() {
   group_answers
     .iter()
     .for_each(|answers|
-      sum += count_occurrences(answers.trim().chars())
+      sum += count_occurrences(answers.trim())
     );
-
   println!("{} answered questions", sum);
 }
 
-fn count_occurrences(answers: Chars) -> u32 {
-  let chars: Vec<char> = answers.collect();
+fn count_occurrences(group_answers: &str) -> u32 {
+  let answers: Vec<&str> = group_answers.split("\n").collect();
   let mut counts: HashMap<char, u32> = HashMap::new();
+  let group_size = answers.len() as u32;
 
-  for char in chars.iter() {
-    if *char == '\n' {
-      continue;
+  for answer in answers.iter() {
+    let chars: Vec<char> = answer.chars().collect();
+
+    for char in chars.iter() {
+      if *char == '\n' {
+        continue;
+      }
+
+      let entry = counts.entry(*char).or_insert(0);
+      *entry += 1;
     }
-
-    counts.entry(*char).or_insert(1);
   }
 
-  counts.values().fold(0, |acc, count| acc + count)
+  counts
+    .iter()
+    .filter(|(_k, v)| *v == &group_size)
+    .fold(0, |acc, (_k, _v)| acc + 1)
 }
