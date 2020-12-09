@@ -31,7 +31,7 @@ fn main() {
   let bags: Vec<(u64, Bag)> = build_bags(&rules);
   // display_bags(&bags, "\t".to_owned());
 
-  let bags_count = count_in_children(&bags, (1, "shiny gold"), 0, "root");
+  let bags_count = compute_bag_capacity(&bags, (1, "shiny gold"));
 
   println!("{}", bags_count);
 }
@@ -96,7 +96,7 @@ fn build_content(child: &str) -> RawContent {
   RawContent { amount, identifier }
 }
 
-fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>, root_amount: u64) -> Vec<(u64, Bag)> {
+fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>) -> Vec<(u64, Bag)> {
   let mut bags: Vec<(u64, Bag)> = Vec::new();
 
   for content in contents {
@@ -105,12 +105,12 @@ fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>, root_amou
       .find(|r| *r.identifier == content.identifier) {
         None => Vec::new(),
         Some(rule) => {
-          build_bag_content(&rules, &rule.content, content.amount * root_amount)
+          build_bag_content(&rules, &rule.content)
         }
       };
 
     bags.push((
-      content.amount * root_amount,
+      content.amount,
       Bag {
         identifier: content.identifier.clone(),
         content: sub_content
@@ -126,7 +126,7 @@ fn build_bags(rules: &Vec<RawRule>) -> Vec<(u64, Bag)> {
     .map(|rule|
       (1, Bag {
         identifier: rule.identifier.clone(),
-        content: build_bag_content(&rules, &rule.content, 1)
+        content: build_bag_content(&rules, &rule.content)
       })
     )
     .collect()
@@ -156,4 +156,25 @@ fn count_in_children(bags: &Vec<(u64, Bag)>, to_find: (u64, &str)) -> u32 {
   }
 
   total
+}
+
+fn compute_child_capacity(bags: &Vec<(u64, Bag)>) -> u64 {
+  bags
+    .iter()
+    .map(|(amount, bag)| amount * compute_child_capacity(&bag.content))
+    .fold(1, |acc, x| acc + x)
+}
+
+fn compute_bag_capacity(bags: &Vec<(u64, Bag)>, to_find: (u64, &str)) -> u64 {
+  let parent: Option<&(u64, Bag)> =
+    bags
+      .iter()
+      .find(|(amount, bag)| *amount == to_find.0 && bag.identifier == to_find.1);
+
+  let (parent_amount, bag) = parent.unwrap();
+
+  bag.content
+    .iter()
+    .map(|(amount, bag)| parent_amount * amount * compute_child_capacity(&bag.content))
+    .fold(0, |acc, size| acc + size)
 }
