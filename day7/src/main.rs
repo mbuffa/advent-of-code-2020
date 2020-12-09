@@ -5,7 +5,7 @@ extern crate regex;
 
 #[derive(Debug)]
 struct RawContent {
-  amount: u32,
+  amount: u64,
   identifier: String
 }
 
@@ -18,22 +18,32 @@ struct RawRule {
 #[derive(Debug, Clone)]
 struct Bag {
   identifier: String,
-  content: Vec<(u32, Bag)>
+  content: Vec<(u64, Bag)>
 }
 
 fn main() {
-  let contents = fs::read_to_string("./example.txt")
+  let contents = fs::read_to_string("./input.txt")
     .expect("Cannot load file.");
 
   let rules: Vec<RawRule> = evaluate_rules(&contents);
   // println!("{:?}", rules);
 
-  let bags: Vec<(u32, Bag)> = build_bags(&rules);
-  // println!("{:?}", bags);
+  let bags: Vec<(u64, Bag)> = build_bags(&rules);
+  // display_bags(&bags, "\t".to_owned());
 
-  let bags_count = browse_bags(&bags, (1, "shiny gold"), 0, 0, "parent");
+  let bags_count = count_in_children(&bags, (1, "shiny gold"), 0, "root");
 
   println!("{}", bags_count);
+}
+
+fn display_bags(bags: &Vec<(u64, Bag)>, prefix: String) {
+  let mut new_prefix: String = prefix.clone();
+  new_prefix.push_str("\t");
+
+  for (amount, bag) in bags.iter() {
+    println!("{} {} {} can contain:", prefix, amount, bag.identifier);
+    display_bags(&bag.content, new_prefix.clone());
+  }
 }
 
 fn evaluate_rules(rules: &String) -> Vec<RawRule> {
@@ -80,14 +90,14 @@ fn build_content(child: &str) -> RawContent {
 
   let captures = CHILD_RE.captures(child).unwrap();
   let amount_str: &str = captures.get(1).unwrap().as_str();
-  let amount: u32 = amount_str.parse::<u32>().unwrap() as u32;
+  let amount: u64 = amount_str.parse::<u32>().unwrap() as u64;
   let identifier: String = captures.get(2).unwrap().as_str().to_string();
 
   RawContent { amount, identifier }
 }
 
-fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>) -> Vec<(u32, Bag)> {
-  let mut bags: Vec<(u32, Bag)> = Vec::new();
+fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>, root_amount: u64) -> Vec<(u64, Bag)> {
+  let mut bags: Vec<(u64, Bag)> = Vec::new();
 
   for content in contents {
     let sub_content = match rules
@@ -95,12 +105,12 @@ fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>) -> Vec<(u
       .find(|r| *r.identifier == content.identifier) {
         None => Vec::new(),
         Some(rule) => {
-          build_bag_content(&rules, &rule.content)
+          build_bag_content(&rules, &rule.content, content.amount * root_amount)
         }
       };
 
     bags.push((
-      content.amount,
+      content.amount * root_amount,
       Bag {
         identifier: content.identifier.clone(),
         content: sub_content
@@ -110,42 +120,40 @@ fn build_bag_content(rules: &Vec<RawRule>, contents: &Vec<RawContent>) -> Vec<(u
   bags
 }
 
-fn build_bags(rules: &Vec<RawRule>) -> Vec<(u32, Bag)> {
+fn build_bags(rules: &Vec<RawRule>) -> Vec<(u64, Bag)> {
   rules
     .iter()
     .map(|rule|
-      (0, Bag {
+      (1, Bag {
         identifier: rule.identifier.clone(),
-        content: build_bag_content(&rules, &rule.content)
+        content: build_bag_content(&rules, &rule.content, 1)
       })
     )
     .collect()
 }
 
-fn browse_bags(bags: &Vec<(u32, Bag)>, to_find: (u32, &str), idx: usize, valid_bags: u32, mode: &str) -> u32 {
-  // println!("received {:?} {} {}", to_find, idx, valid_bags);
-
-  if bags.len() == 0 {
-    return 0;
+fn contains(bag: &Bag, to_find: (u64, &str)) -> bool {
+  if bag.identifier == to_find.1 {
+    return true;
   }
 
-  // println!("Going through: {} {}...", mode, bags[idx].1.identifier,);
-  // println!("Going through: {} {}... {:?}", mode, bags[idx].1.identifier, &bags[idx].1.content);
-
-  let valid_in_children = browse_bags(&bags[idx].1.content, to_find, 0, 0, "child");
-  // println!("{} in children", valid_in_children);
-
-  if mode == "child" && bags[idx].1.identifier == to_find.1 {
-    // println!("{} {}", bags[idx].0, to_find.0);
-    if bags[idx].0 >= to_find.0 {
-      return 1;
+  for (_, child) in bag.content.iter() {
+    if contains(child, to_find) {
+      return true;
     }
-
   }
 
-  if idx + 1 < bags.len() {
-    return browse_bags(bags, to_find, idx + 1, valid_bags + valid_in_children, "parent");
-  } else {
-    return valid_bags;
+  false
+}
+
+fn count_in_children(bags: &Vec<(u64, Bag)>, to_find: (u64, &str)) -> u32 {
+  let mut total = 0;
+
+  for (_, bag) in bags.iter() {
+    if contains(&bag, to_find) && bag.identifier != to_find.1 {
+      total += 1;
+    }
   }
+
+  total
 }
