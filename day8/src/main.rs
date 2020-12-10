@@ -127,7 +127,7 @@ fn extract(args: &Vec<char>) -> (char, i64) {
   let mut args_copy = args.clone();
   let sign: Vec<char> = args_copy.drain(0..1).collect();
   let number_str: String = String::from_iter(args_copy);
-  let number: i64 = number_str.parse::<u64>().unwrap() as i64;
+  let number: i64 = number_str.parse::<i64>().unwrap() as i64;
 
   (sign[0], number)
 }
